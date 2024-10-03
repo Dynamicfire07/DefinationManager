@@ -21,9 +21,3 @@ Before you can run the application, ensure you have the following dependencies i
 - PyQt6
 - pandas (for CSV/XLSX file handling)
 
-## Installation
-
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/yourusername/definition-manager.git
-   cd definition-manager
