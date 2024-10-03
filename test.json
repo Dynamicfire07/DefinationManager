@@ -1,0 +1,22 @@
+{
+    "name": "Root",
+    "subfolders": [
+        {
+            "name": "Physics",
+            "subfolders": [
+                {
+                    "name": "A1",
+                    "subfolders": [],
+                    "definitions": []
+                }
+            ],
+            "definitions": [
+                {
+                    "phrase": "test",
+                    "meaning": "this is just a test to see how good this looks\n"
+                }
+            ]
+        }
+    ],
+    "definitions": []
+}
