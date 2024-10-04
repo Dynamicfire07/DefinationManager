@@ -1,0 +1,105 @@
+{
+    "name": "Root",
+    "color": "#2b00ff",
+    "subfolders": [
+        {
+            "name": "phy",
+            "color": null,
+            "subfolders": [
+                {
+                    "name": "theme A",
+                    "color": "#84fff5",
+                    "subfolders": [],
+                    "definitions": [
+                        {
+                            "phrase": "Scalar ",
+                            "meaning": "A scalar is a quantity which only has a magnitude \u2013 no direction."
+                        },
+                        {
+                            "phrase": "Vector",
+                            "meaning": "A vector is a quantity or phenomenon that has two independent properties: magnitude and direction"
+                        },
+                        {
+                            "phrase": "Displacment (s)",
+                            "meaning": "Distance traveled in a particular direction (change in position)"
+                        },
+                        {
+                            "phrase": "Velocity (u,v) ",
+                            "meaning": "Rate of change of displacement"
+                        },
+                        {
+                            "phrase": "Speed",
+                            "meaning": "Rate of change of distance"
+                        },
+                        {
+                            "phrase": "Acceleration",
+                            "meaning": "Rate of change of velocity"
+                        },
+                        {
+                            "phrase": "Newton's 1st law",
+                            "meaning": " An object at rest remains at rest and an object in motion remains in motion at a constant speed in a straight line unless acted on by an unbalanced force."
+                        },
+                        {
+                            "phrase": "Newton's 2nd law",
+                            "meaning": "An unbalanced force will cause an object to accelerate in the direction of the net force. The acceleration of the object is proportional to the net force and inversely proportional to its mass. (Fnet = ma or Fnet =\u0394 p/\u0394 t (net force = rate of change of momentum))"
+                        },
+                        {
+                            "phrase": "Newton's 3rd law",
+                            "meaning": "When two bodies A and B interact (push or pull), the force that A exerts on B is equal and opposite to the force that B exerts on A."
+                        },
+                        {
+                            "phrase": "Translational Equilibrium",
+                            "meaning": "Net force acting on a body is zero"
+                        },
+                        {
+                            "phrase": "Linear Momentum (p)",
+                            "meaning": "Product of mass and velocity"
+                        },
+                        {
+                            "phrase": "Impulse (J)",
+                            "meaning": "Change in momentum"
+                        },
+                        {
+                            "phrase": "Law of consevartion of LM (c12)",
+                            "meaning": "The total momentum of an isolated system (no external forces) remains constant."
+                        },
+                        {
+                            "phrase": "Work",
+                            "meaning": "The product of a force on an object and the displacement of the object in the direction of the force."
+                        },
+                        {
+                            "phrase": "Kinetic Energy ",
+                            "meaning": "Product of \u00bd times the mass of an object times the square of an object\u2019s speed"
+                        },
+                        {
+                            "phrase": "Change in Gravitational Potential Energy",
+                            "meaning": "Poduct of an object\u2019s mass times the gravitational field strength times the change in height"
+                        },
+                        {
+                            "phrase": "Principle of Conservation of Energy",
+                            "meaning": "The total energy of an isolated system (no external forces) remains constant. (OR \u2013 Energy can be neither created nor destroyed but only transformed from one form to another or transferred from one object to another.)"
+                        },
+                        {
+                            "phrase": "Elastic Collision",
+                            "meaning": "A collision in which kinetic energy is conserved"
+                        },
+                        {
+                            "phrase": "Inelastic Collision ",
+                            "meaning": "A collision in which kinetic energy is not conserved"
+                        },
+                        {
+                            "phrase": "Power (P)",
+                            "meaning": "The rate at which work is done or the rate at which energy is transferred"
+                        },
+                        {
+                            "phrase": "Efficiency (eff)",
+                            "meaning": "The ratio of the useful energy (or power or work) output to the total energy (or power or work) input"
+                        }
+                    ]
+                }
+            ],
+            "definitions": []
+        }
+    ],
+    "definitions": []
+}

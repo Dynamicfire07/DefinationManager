@@ -5,11 +5,13 @@ import pandas as pd
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QWidget,
     QHBoxLayout, QPushButton, QLineEdit, QTextEdit, QFileDialog, QMessageBox, QTableWidget,
-    QTableWidgetItem, QLabel, QDialog, QInputDialog, QColorDialog, QGridLayout, QScrollArea
+    QTableWidgetItem, QLabel, QDialog, QInputDialog, QColorDialog, QGridLayout, QScrollArea, QCheckBox,QComboBox,QToolBar
 )
 from PyQt6.QtWidgets import QStyle
 from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QIcon, QFont, QColor
+from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QIcon, QFont, QColor, QAction
+
 
 DATA_FILE = 'data.json'
 
@@ -49,8 +51,77 @@ class Folder:
         folder.definitions = [Definition.from_dict(d) for d in data.get('definitions', [])]
         return folder
 
+class DataPreviewDialog(QDialog):
+    def __init__(self, df, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle('Preview Data')
+        self.df = df
+        self.selected_data = []
+        self.init_ui()
 
-# Definition Dialog
+    def init_ui(self):
+        layout = QVBoxLayout()
+
+        # Dropdowns for selecting columns
+        self.column_combo_phrase = QComboBox()
+        self.column_combo_meaning = QComboBox()
+        self.column_combo_phrase.addItems(self.df.columns)
+        self.column_combo_meaning.addItems(self.df.columns)
+
+        layout.addWidget(QLabel("Select Phrase Column:"))
+        layout.addWidget(self.column_combo_phrase)
+        layout.addWidget(QLabel("Select Meaning Column:"))
+        layout.addWidget(self.column_combo_meaning)
+
+        # Table preview with selectable rows
+        self.table = QTableWidget()
+        self.table.setColumnCount(3)
+        self.table.setHorizontalHeaderLabels(['Select', 'Phrase', 'Meaning'])
+        self.table.horizontalHeader().setStretchLastSection(True)
+        layout.addWidget(self.table)
+
+        # Import and cancel buttons
+        button_layout = QHBoxLayout()
+        self.import_button = QPushButton('Import Selected')
+        self.import_button.clicked.connect(self.accept)
+        self.cancel_button = QPushButton('Cancel')
+        self.cancel_button.clicked.connect(self.reject)
+        button_layout.addWidget(self.import_button)
+        button_layout.addWidget(self.cancel_button)
+
+        layout.addLayout(button_layout)
+        self.setLayout(layout)
+
+        self.update_table_preview()
+
+        # Update table preview when column selections change
+        self.column_combo_phrase.currentIndexChanged.connect(self.update_table_preview)
+        self.column_combo_meaning.currentIndexChanged.connect(self.update_table_preview)
+
+    def update_table_preview(self):
+        self.table.setRowCount(len(self.df))
+        phrase_col = self.column_combo_phrase.currentText()
+        meaning_col = self.column_combo_meaning.currentText()
+
+        for row in range(len(self.df)):
+            select_item = QCheckBox()
+            select_item.setChecked(True)
+            self.table.setCellWidget(row, 0, select_item)
+            self.table.setItem(row, 1, QTableWidgetItem(str(self.df[phrase_col][row])))
+            self.table.setItem(row, 2, QTableWidgetItem(str(self.df[meaning_col][row])))
+
+    def get_selected_data(self):
+        phrase_col = self.column_combo_phrase.currentText()
+        meaning_col = self.column_combo_meaning.currentText()
+
+        for row in range(self.table.rowCount()):
+            if self.table.cellWidget(row, 0).isChecked():
+                phrase = str(self.df[phrase_col][row])
+                meaning = str(self.df[meaning_col][row])
+                self.selected_data.append((phrase, meaning))
+        return self.selected_data
+
+
 class DefinitionDialog(QDialog):
     def __init__(self, parent=None, definition=None):
         super().__init__(parent)
@@ -195,11 +266,14 @@ class AllDefinitionsDialog(QDialog):
 
 # Flashcard Dialog
 class FlashcardDialog(QDialog):
-    def __init__(self, parent, definitions):
+    def __init__(self, definitions, parent=None):
         super().__init__(parent)
         self.setWindowTitle('Flashcards')
         self.definitions = definitions
+        self.current_index = -1
         self.init_ui()
+        random.shuffle(self.definitions)
+        self.next_flashcard()
 
     def init_ui(self):
         layout = QVBoxLayout()
@@ -214,20 +288,16 @@ class FlashcardDialog(QDialog):
         self.meaning_label.setStyleSheet('font-size: 18px; color: gray;')
         layout.addWidget(self.meaning_label)
 
-        btn_layout = QHBoxLayout()
+        button_layout = QHBoxLayout()
         self.show_meaning_btn = QPushButton('Show Meaning')
         self.show_meaning_btn.clicked.connect(self.show_meaning)
         self.next_btn = QPushButton('Next')
         self.next_btn.clicked.connect(self.next_flashcard)
-        btn_layout.addWidget(self.show_meaning_btn)
-        btn_layout.addWidget(self.next_btn)
+        button_layout.addWidget(self.show_meaning_btn)
+        button_layout.addWidget(self.next_btn)
 
-        layout.addLayout(btn_layout)
+        layout.addLayout(button_layout)
         self.setLayout(layout)
-
-        random.shuffle(self.definitions)
-        self.current_index = -1
-        self.next_flashcard()
 
     def show_meaning(self):
         if 0 <= self.current_index < len(self.definitions):
@@ -254,7 +324,7 @@ class MainWindow(QMainWindow):
 
         self.root_folder = Folder('Root')
         self.current_folder = self.root_folder
-        self.folder_stack = [self.root_folder]  # To keep track of navigation
+        self.folder_stack = [self.root_folder]
 
         self.load_data()
         self.init_ui()
@@ -262,6 +332,14 @@ class MainWindow(QMainWindow):
     def init_ui(self):
         # Main layout
         main_layout = QHBoxLayout()
+        toolbar = QToolBar("Toolbar")
+        self.addToolBar(Qt.ToolBarArea.BottomToolBarArea, toolbar)
+
+        flashcard_action = QAction("Flashcards", self)
+        flashcard_action.triggered.connect(self.open_flashcards)
+        toolbar.addAction(flashcard_action)
+
+        # Add other toolbar actions as needed
 
         # Sidebar
         self.sidebar = QVBoxLayout()
@@ -295,14 +373,6 @@ class MainWindow(QMainWindow):
         self.save_btn.clicked.connect(self.save_data)
         self.sidebar.addWidget(self.save_btn)
 
-        self.search_btn = QPushButton('Search')
-        self.search_btn.clicked.connect(self.open_search)
-        self.sidebar.addWidget(self.search_btn)
-
-        self.all_defs_btn = QPushButton('All Words and Definitions')
-        self.all_defs_btn.clicked.connect(self.open_all_definitions)
-        self.sidebar.addWidget(self.all_defs_btn)
-
         self.flashcard_btn = QPushButton('Flashcards')
         self.flashcard_btn.clicked.connect(self.open_flashcards)
         self.sidebar.addWidget(self.flashcard_btn)
@@ -324,7 +394,7 @@ class MainWindow(QMainWindow):
         }
         """
         for btn in [self.back_btn, self.add_folder_btn, self.add_def_btn, self.change_color_btn,
-                    self.import_btn, self.export_btn, self.save_btn, self.search_btn, self.all_defs_btn, self.flashcard_btn]:
+                    self.import_btn, self.export_btn, self.save_btn,self.flashcard_btn]:
             btn.setStyleSheet(button_style)
 
         # Content Area
@@ -342,6 +412,22 @@ class MainWindow(QMainWindow):
         self.scroll_area.setWidgetResizable(True)
         self.content_layout.addWidget(self.scroll_area)
 
+        # Toolbar
+        toolbar = QToolBar("Toolbar")
+        self.addToolBar(Qt.ToolBarArea.BottomToolBarArea, toolbar)
+
+        edit_action = QAction("Edit Definition", self)
+        edit_action.triggered.connect(self.edit_definition)
+        toolbar.addAction(edit_action)
+
+        delete_action = QAction("Delete Definition", self)
+        delete_action.triggered.connect(self.delete_definition)
+        toolbar.addAction(delete_action)
+
+        search_action = QAction("Search Definitions", self)
+        search_action.triggered.connect(self.search_definitions)
+        toolbar.addAction(search_action)
+
         # Set layouts
         main_layout.addLayout(self.sidebar)
         main_layout.addLayout(self.content_layout)
@@ -353,65 +439,66 @@ class MainWindow(QMainWindow):
 
         self.update_content()
 
+    def open_flashcards(self):
+        if self.current_folder.definitions:
+            flashcard_dialog = FlashcardDialog(self.current_folder.definitions, self)
+            flashcard_dialog.exec()
+        else:
+            QMessageBox.information(self, 'Info', 'No definitions available for flashcards.')
+
     def update_content(self):
         self.path_label.setText(' / '.join([folder.name for folder in self.folder_stack]))
 
-        # Determine if current folder contains subfolders or definitions
-        has_subfolders = len(self.current_folder.subfolders) > 0
-        has_definitions = len(self.current_folder.definitions) > 0
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        widget.setLayout(layout)
 
-        if has_subfolders and has_definitions:
-            QMessageBox.warning(self, 'Error', 'A folder cannot contain both subfolders and definitions.')
-            self.current_folder.definitions.clear()
-            self.save_data()
-
-        if has_subfolders:
-            # Display subfolders in grid view
-            widget = QWidget()
-            grid_layout = QGridLayout()
-            widget.setLayout(grid_layout)
-            row = 0
-            col = 0
-            for idx, folder in enumerate(self.current_folder.subfolders):
-                button = QPushButton(folder.name)
-                folder_icon = self.style().standardIcon(QStyle.StandardPixmap.SP_DirIcon)
-                button.setIcon(folder_icon)
-                button.setIconSize(QSize(64, 64))
-                button.setMinimumSize(150, 150)
-                button.setStyleSheet(f"background-color: transparent; border: none;")
-                button.clicked.connect(lambda checked, f=folder: self.enter_folder(f))
-                grid_layout.addWidget(button, row, col)
-                col += 1
-                if col >= 4:
-                    col = 0
-                    row += 1
-            self.scroll_area.setWidget(widget)
-        elif has_definitions:
-            # Display definitions in a table
-            widget = QWidget()
-            v_layout = QVBoxLayout()
-            widget.setLayout(v_layout)
-
+        # Check if the current folder has definitions
+        if self.current_folder.definitions:
             table = QTableWidget()
             table.setColumnCount(2)
             table.setHorizontalHeaderLabels(['Phrase', 'Meaning'])
             table.horizontalHeader().setStretchLastSection(True)
             table.setRowCount(len(self.current_folder.definitions))
+
             for row, definition in enumerate(self.current_folder.definitions):
                 phrase_item = QTableWidgetItem(definition.phrase)
                 meaning_item = QTableWidgetItem(definition.meaning)
                 table.setItem(row, 0, phrase_item)
                 table.setItem(row, 1, meaning_item)
-            v_layout.addWidget(table)
-            self.scroll_area.setWidget(widget)
-        else:
-            # Empty folder
-            widget = QWidget()
-            v_layout = QVBoxLayout()
-            v_layout.addWidget(QLabel('This folder is empty.'))
-            widget.setLayout(v_layout)
-            self.scroll_area.setWidget(widget)
 
+            # Add table to layout
+            layout.addWidget(table)
+        else:
+            # Display folders in grid if no definitions present
+            grid_layout = QGridLayout()
+            row, col = 0, 0
+
+            for folder in self.current_folder.subfolders:
+                button = QPushButton()
+                button.setFlat(True)
+                button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DirIcon))
+                button.setIconSize(QSize(64, 64))
+                label = QLabel(folder.name)
+                label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                label.setStyleSheet("margin-top: -5px;")
+                vbox = QVBoxLayout()
+                vbox.addWidget(button, alignment=Qt.AlignmentFlag.AlignCenter)
+                vbox.addWidget(label)
+                container = QWidget()
+                container.setLayout(vbox)
+                grid_layout.addWidget(container, row, col)
+                button.clicked.connect(lambda checked, f=folder: self.enter_folder(f))
+
+                col += 1
+                if col >= 3:
+                    col = 0
+                    row += 1
+
+            layout.addLayout(grid_layout)
+
+        # Update scroll area with new widget layout
+        self.scroll_area.setWidget(widget)
         self.back_btn.setEnabled(len(self.folder_stack) > 1)
 
     def enter_folder(self, folder):
@@ -426,9 +513,6 @@ class MainWindow(QMainWindow):
             self.update_content()
 
     def add_folder(self):
-        if self.current_folder.definitions:
-            QMessageBox.warning(self, 'Error', 'Cannot add a folder here. This folder contains definitions.')
-            return
         name, ok = QInputDialog.getText(self, 'Add Folder', 'Folder Name:')
         if ok and name:
             new_folder = Folder(name)
@@ -437,9 +521,6 @@ class MainWindow(QMainWindow):
             self.save_data()
 
     def add_definition(self):
-        if self.current_folder.subfolders:
-            QMessageBox.warning(self, 'Error', 'Cannot add definitions here. This folder contains subfolders.')
-            return
         def_dialog = DefinitionDialog(self)
         if def_dialog.exec():
             phrase = def_dialog.phrase_input.text()
@@ -449,6 +530,57 @@ class MainWindow(QMainWindow):
                 self.current_folder.definitions.append(new_def)
                 self.update_content()
                 self.save_data()
+
+    def edit_definition(self):
+        if not self.current_folder.definitions:
+            QMessageBox.warning(self, 'Error', 'No definitions to edit.')
+            return
+
+        definition_to_edit, ok = QInputDialog.getItem(self, 'Edit Definition', 'Select a definition:',
+                                                      [d.phrase for d in self.current_folder.definitions],
+                                                      editable=False)
+        if ok and definition_to_edit:
+            definition = next(d for d in self.current_folder.definitions if d.phrase == definition_to_edit)
+            dialog = DefinitionDialog(self, definition)
+            if dialog.exec():
+                definition.phrase = dialog.phrase_input.text()
+                definition.meaning = dialog.meaning_input.toPlainText()
+                self.update_content()
+                self.save_data()
+
+    def delete_definition(self):
+        if not self.current_folder.definitions:
+            QMessageBox.warning(self, 'Error', 'No definitions to delete.')
+            return
+
+        definition_to_delete, ok = QInputDialog.getItem(self, 'Delete Definition', 'Select a definition:',
+                                                        [d.phrase for d in self.current_folder.definitions],
+                                                        editable=False)
+        if ok and definition_to_delete:
+            self.current_folder.definitions = [d for d in self.current_folder.definitions if
+                                               d.phrase != definition_to_delete]
+            self.update_content()
+            self.save_data()
+
+    def search_definitions(self):
+        search_term, ok = QInputDialog.getText(self, 'Search Definitions', 'Enter a phrase or meaning:')
+        if ok and search_term:
+            matches = [d for d in self.current_folder.definitions if
+                       search_term.lower() in d.phrase.lower() or search_term.lower() in d.meaning.lower()]
+            if matches:
+                result_dialog = QDialog(self)
+                result_dialog.setWindowTitle('Search Results')
+                layout = QVBoxLayout(result_dialog)
+                table = QTableWidget(len(matches), 2)
+                table.setHorizontalHeaderLabels(['Phrase', 'Meaning'])
+                for i, definition in enumerate(matches):
+                    table.setItem(i, 0, QTableWidgetItem(definition.phrase))
+                    table.setItem(i, 1, QTableWidgetItem(definition.meaning))
+                layout.addWidget(table)
+                result_dialog.setLayout(layout)
+                result_dialog.exec()
+            else:
+                QMessageBox.information(self, 'Info', 'No matches found.')
 
     def change_folder_color(self):
         color = QColorDialog.getColor()
@@ -460,65 +592,29 @@ class MainWindow(QMainWindow):
     def import_data(self):
         options = QFileDialog.Option.ReadOnly
         file_name, _ = QFileDialog.getOpenFileName(
-            self, 'Import Data', '', 'All Supported Files (*.json *.csv *.xlsx);;JSON Files (*.json);;CSV Files (*.csv);;Excel Files (*.xlsx)', options=options)
+            self, 'Import Data', '', 'CSV Files (*.csv);;Excel Files (*.xlsx)', options=options)
         if file_name:
             file_extension = file_name.split('.')[-1].lower()
-            if file_extension == 'json':
-                self.import_json(file_name)
-            elif file_extension in ['csv', 'xlsx']:
+            if file_extension in ['csv', 'xlsx']:
                 self.import_tabular_data(file_name, file_extension)
             else:
                 QMessageBox.warning(self, 'Error', 'Unsupported file type.')
 
-    def import_json(self, file_name):
-        try:
-            with open(file_name, 'r') as f:
-                data = json.load(f)
-                new_data = Folder.from_dict(data)
-                # Ensure that the current folder can accept the imported data
-                if self.current_folder.subfolders:
-                    if new_data.subfolders or new_data.definitions:
-                        QMessageBox.warning(self, 'Error', 'Cannot import data here. This folder contains subfolders.')
-                        return
-                elif self.current_folder.definitions:
-                    if new_data.subfolders or new_data.definitions:
-                        QMessageBox.warning(self, 'Error', 'Cannot import data here. This folder contains definitions.')
-                        return
-                self.current_folder.subfolders.extend(new_data.subfolders)
-                self.current_folder.definitions.extend(new_data.definitions)
-                self.update_content()
-                self.save_data()
-        except Exception as e:
-            QMessageBox.warning(self, 'Error', f'Failed to import data: {e}')
-
     def import_tabular_data(self, file_name, file_type):
         try:
-            if self.current_folder.subfolders:
-                QMessageBox.warning(self, 'Error', 'Cannot import definitions here. This folder contains subfolders.')
-                return
             if file_type == 'csv':
                 df = pd.read_csv(file_name)
             elif file_type == 'xlsx':
                 df = pd.read_excel(file_name)
-            else:
-                QMessageBox.warning(self, 'Error', 'Unsupported file type.')
-                return
 
-            # Check required columns
-            if 'Phrase' not in df.columns or 'Meaning' not in df.columns:
-                QMessageBox.warning(
-                    self, 'Error', 'CSV/XLSX file must contain "Phrase" and "Meaning" columns.')
-                return
-
-            # Add definitions to the current folder
-            for index, row in df.iterrows():
-                phrase = str(row['Phrase'])
-                meaning = str(row['Meaning'])
-                new_def = Definition(phrase, meaning)
-                self.current_folder.definitions.append(new_def)
-
-            self.update_content()
-            self.save_data()
+            preview_dialog = DataPreviewDialog(df, self)
+            if preview_dialog.exec() == QDialog.DialogCode.Accepted:
+                selected_data = preview_dialog.get_selected_data()
+                for phrase, meaning in selected_data:
+                    new_def = Definition(phrase, meaning)
+                    self.current_folder.definitions.append(new_def)
+                self.update_content()
+                self.save_data()
         except Exception as e:
             QMessageBox.warning(self, 'Error', f'Failed to import data: {e}')
 
@@ -532,33 +628,10 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 QMessageBox.warning(self, 'Error', f'Failed to export data: {e}')
 
-    def open_search(self):
-        search_dialog = SearchDialog(self, self.root_folder)
-        search_dialog.exec()
-
-    def open_all_definitions(self):
-        all_defs_dialog = AllDefinitionsDialog(self, self.root_folder)
-        all_defs_dialog.exec()
-
-    def open_flashcards(self):
-        definitions = self.collect_definitions(self.current_folder)
-        if definitions:
-            flashcard_dialog = FlashcardDialog(self, definitions)
-            flashcard_dialog.exec()
-        else:
-            QMessageBox.information(self, 'Info', 'No definitions available for flashcards.')
-
-    def collect_definitions(self, folder):
-        defs = folder.definitions.copy()
-        for subfolder in folder.subfolders:
-            defs.extend(self.collect_definitions(subfolder))
-        return defs
-
     def save_data(self):
         try:
             with open(DATA_FILE, 'w') as f:
                 json.dump(self.root_folder.to_dict(), f, indent=4)
-            QMessageBox.information(self, 'Info', 'Data saved successfully.')
         except Exception as e:
             QMessageBox.warning(self, 'Error', f'Failed to save data: {e}')
 
@@ -581,12 +654,6 @@ if __name__ == '__main__':
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
-
-
-
-
-
-
 
 
 
